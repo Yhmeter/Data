@@ -1,959 +1,716 @@
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>한국아이치(주) 수도미터 관리 시스템</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
-  />
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
-    body {
-      font-family: 'Orbitron', sans-serif;
-    }
-    /* 스크롤바 스타일 */
-    .scrollbar-thin::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    .scrollbar-thin::-webkit-scrollbar-thumb {
-      background-color: #888;
-      border-radius: 3px;
-    }
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      #printable-area, #printable-area * {
-        visibility: visible;
-      }
-      #printable-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-      }
-      nav, #logout-btn, #print-btn {
-        display: none !important;
-      }
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>한국아이치(주) — 지사 AI 주문 상담</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --P:#1a3a0a;--A:#4a8a1a;--H:#c8e600;
+  --bg:#f4f6f2;--sur:#fff;--txt:#1c2b10;
+  --muted:#6b7c5a;--brd:#d5dfc8;
+  --red:#dc2626;--blue:#3b82f6;
+  --R:12px;--sh:0 4px 24px rgba(26,58,10,.09);
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column}
+
+/* ─── HEADER ─── */
+.hdr{background:var(--P);color:var(--H);padding:0 20px;height:56px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.25);position:sticky;top:0;z-index:100}
+.hdr h1{font-family:'Orbitron',monospace;font-size:clamp(11px,2vw,15px);font-weight:700;letter-spacing:.05em;white-space:nowrap}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* ─── NAV ─── */
+.nav{background:var(--sur);padding:8px 14px;display:flex;flex-wrap:wrap;gap:5px;border-bottom:1px solid var(--brd);box-shadow:var(--sh);position:sticky;top:56px;z-index:90}
+.tbtn{border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);font-family:inherit;transition:.15s}
+.tbtn:hover{background:var(--A);color:#fff}
+.tbtn.active{background:var(--P);color:var(--H)}
+
+/* ─── MAIN ─── */
+main{flex:1;max-width:1100px;margin:0 auto;width:100%;padding:22px 14px}
+.tab{display:none}.tab.active{display:block;animation:fi .2s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+
+/* ─── CARD ─── */
+.card{background:var(--sur);border-radius:var(--R);padding:20px;box-shadow:var(--sh);border:1px solid var(--brd);margin-bottom:18px}
+.ctitle{font-size:14px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--brd);display:flex;align-items:center;gap:7px}
+
+/* ─── FORM ─── */
+label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+input,select,textarea{width:100%;border:1.5px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;background:var(--sur);color:var(--txt);outline:none;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--A);box-shadow:0 0 0 3px rgba(74,138,26,.13)}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px}
+.fg .full{grid-column:1/-1}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+.btn-p{background:linear-gradient(135deg,#c8e600,#4a8a1a);color:#0d1a07}
+.btn-p:hover{filter:brightness(1.08);box-shadow:0 3px 14px rgba(74,138,26,.3)}
+.btn-d{background:var(--red);color:#fff}.btn-d:hover{background:#b91c1c}
+.btn-i{background:var(--blue);color:#fff}.btn-i:hover{background:#2563eb}
+.btn-g{background:#9ca3af;color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+.hidden{display:none!important}
+
+/* ─── TABLE ─── */
+.tblw{overflow-x:auto;border-radius:9px;border:1px solid var(--brd)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--P);color:var(--H)}
+thead th{padding:9px 11px;text-align:left;font-weight:600;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--brd);transition:background .1s}
+tbody tr:hover{background:rgba(74,138,26,.05)}
+tbody td{padding:8px 11px}
+.bdg{display:inline-block;padding:2px 9px;border-radius:18px;font-size:11px;font-weight:700}
+.b-new{background:#dbeafe;color:#1d4ed8}
+.b-proc{background:#fef9c3;color:#854d0e}
+.b-done{background:#d1fae5;color:#065f46}
+.b-cancel{background:#fee2e2;color:#991b1b}
+
+/* ─── STAT CARDS ─── */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+.scard{background:var(--sur);border-radius:9px;padding:14px;border:1px solid var(--brd);text-align:center;box-shadow:var(--sh)}
+.slbl{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.sval{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--A)}
+
+/* ─── HERO ─── */
+.hero{background:linear-gradient(135deg,#1a3a0a,#2e5a10);border-radius:var(--R);padding:22px 24px;margin-bottom:18px;color:#fff}
+.hero h2{font-family:'Orbitron',monospace;font-size:17px;color:var(--H);margin-bottom:6px}
+.hero p{color:#9acc66;font-size:13px;line-height:1.6}
+
+/* ─── SUCCESS ─── */
+.succ{text-align:center;padding:40px 20px}
+.succ .ck{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#c8e600,#4a8a1a);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;box-shadow:0 6px 20px rgba(74,138,26,.3)}
+.succ h3{font-size:20px;color:var(--P);margin-bottom:8px}
+.succ p{color:var(--muted);font-size:13px}
+
+/* ─── MODAL ─── */
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.48);display:flex;align-items:center;justify-content:center;z-index:500}
+.mbox{background:var(--sur);border-radius:14px;padding:24px;width:500px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.drow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--brd);font-size:13px}
+.drow:last-child{border-bottom:none}
+.dlbl{color:var(--muted);font-weight:600;flex-shrink:0;margin-right:12px}
+.dval{font-weight:500;text-align:right}
+
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--P);color:var(--H);padding:10px 22px;border-radius:28px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+
+/* ─── FILTER BAR ─── */
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;background:linear-gradient(135deg,#4a6a1a,#2e4a0a);border-radius:var(--R);margin-bottom:14px}
+.fbar label{color:#c8f09a;margin:0;font-size:12px}
+.fbar input,.fbar select{background:rgba(255,255,255,.15);border-color:rgba(200,240,154,.3);color:#fff;width:auto}
+.fbar input::placeholder{color:rgba(255,255,255,.5)}
+
+/* ─── SPINNER ─── */
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ═══════════════ AI CHAT ═══════════════ */
+#ai-wrap{position:fixed;bottom:22px;right:22px;z-index:998}
+#ai-fab{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#1a3a0a,#4a8a1a);border:3px solid var(--H);box-shadow:0 4px 22px rgba(26,58,10,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:.2s;position:relative}
+#ai-fab:hover{transform:scale(1.09)}
+#ai-dot{position:absolute;top:-3px;right:-3px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;display:none}
+
+#ai-panel{position:fixed;bottom:100px;right:22px;width:370px;max-width:calc(100vw - 36px);background:var(--sur);border-radius:16px;box-shadow:0 8px 40px rgba(26,58,10,.22),0 2px 8px rgba(0,0,0,.1);border:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;max-height:540px}
+#ai-head{background:linear-gradient(135deg,#1a3a0a,#2e5a10);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.ai-av{width:38px;height:38px;border-radius:50%;background:var(--H);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#1a3a0a;flex-shrink:0}
+#ai-msgs{flex:1;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:160px;max-height:340px}
+.msg{max-width:84%;padding:9px 13px;border-radius:13px;font-size:13px;line-height:1.55}
+.msg.ai{background:#f0f7e6;border:1px solid #d5eab0;color:#1a3a0a;align-self:flex-start;border-bottom-left-radius:3px}
+.msg.user{background:linear-gradient(135deg,#2e5a10,#4a8a1a);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.msg.ty{background:#f0f7e6;border:1px solid #d5eab0;color:#6b7c5a;align-self:flex-start;border-bottom-left-radius:3px;font-style:italic}
+#ai-qbtns{padding:7px 14px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--brd)}
+.qb{background:#f0f7e6;border:1px solid #c8e6a0;color:#2e5a10;border-radius:18px;padding:4px 11px;font-size:11px;cursor:pointer;font-weight:600;white-space:nowrap;transition:.13s;font-family:inherit}
+.qb:hover{background:#d5eab0}
+#ai-irow{padding:10px 12px;display:flex;gap:7px;border-top:1px solid var(--brd)}
+#ai-inp{flex:1;border:1.5px solid var(--brd);border-radius:20px;padding:7px 14px;font-size:13px;font-family:inherit;outline:none;background:var(--bg)}
+#ai-inp:focus{border-color:var(--A)}
+#ai-send{background:var(--P);color:var(--H);border:none;border-radius:50%;width:34px;height:34px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+#ai-send:hover{transform:scale(1.1)}
+
+/* ─── ORDER FORM EMBEDDED CHAT INTRO ─── */
+.order-ai-banner{background:linear-gradient(135deg,#f0f7e6,#e6f4d0);border:1.5px solid #c8e6a0;border-radius:var(--R);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px}
+.oab-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1a3a0a,#4a8a1a);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--H);flex-shrink:0}
+
+@media(max-width:640px){
+  main{padding:12px 8px}
+  #ai-panel{width:calc(100vw - 32px);right:16px;bottom:90px}
+  #ai-wrap{right:16px;bottom:16px}
+  .fg{grid-template-columns:1fr}
+  .sgrid{grid-template-columns:repeat(2,1fr)}
+}
+
+footer{text-align:center;padding:20px;font-size:11px;color:var(--muted);border-top:1px solid var(--brd)}
+</style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body>
 
-  <!-- 헤더 -->
-  <header class="bg-[#2a2c00] text-[#ffb600] p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-extrabold italic">한국아이치(주)</h1>
-    <div id="user-info" class="text-sm font-bold"></div>
-  </header>
+<header class="hdr">
+  <h1>💧 한국아이치(주) 수도계량기 — 주문 포털</h1>
+  <div class="hdr-right" style="font-size:12px;color:#9acc66;">AI 상담원 지사</div>
+</header>
 
-  <!-- 메인 컨테이너 -->
-  <main class="flex-grow max-w-7xl mx-auto p-4">
+<nav class="nav">
+  <button class="tbtn active" data-tab="order">🛒 주문하기</button>
+  <button class="tbtn" data-tab="received">📋 Received Orders</button>
+  <button class="tbtn" data-tab="about">🏢 안내</button>
+</nav>
 
-    <!-- 로그인 섹션 -->
-    <section id="login-section" class="max-w-md mx-auto bg-white p-6 rounded-md shadow-md">
-      <h2 class="text-xl font-bold mb-4 text-center">로그인</h2>
-      <form id="login-form" class="space-y-4">
-        <div>
-          <label for="username" class="block font-semibold mb-1">사용자 이름</label>
-          <input type="text" id="username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-        </div>
-        <div>
-          <label for="password" class="block font-semibold mb-1">비밀번호</label>
-          <input type="password" id="password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-        </div>
-        <button type="submit" class="w-full bg-yellow-400 text-black font-extrabold py-2 rounded hover:bg-yellow-500 transition">로그인</button>
-      </form>
-    </section>
+<main>
 
-    <!-- 대시보드 섹션 -->
-    <section id="dashboard-section" class="hidden">
+<!-- ══════ ORDER FORM ══════ -->
+<div class="tab active" id="tab-order">
 
-      <!-- 네비게이션 탭 -->
-      <nav class="flex space-x-4 border-b border-gray-300 mb-4 flex-wrap gap-2">
-        <button data-tab="dashboard" class="tab-btn py-2 px-4 font-bold border-b-4 border-yellow-400 text-yellow-600">대시보드</button>
-        <button data-tab="manufacturing" class="tab-btn py-2 px-4 font-bold border-b-4 border-transparent hover:border-yellow-400">제조 기록</button>
-        <button data-tab="selling" class="tab-btn py-2 px-4 font-bold border-b-4 border-transparent hover:border-yellow-400">판매 기록</button>
-        <button data-tab="users" class="tab-btn py-2 px-4 font-bold border-b-4 border-transparent hover:border-yellow-400 hidden" id="users-tab">사용자 관리</button>
-        <button data-tab="settings" class="tab-btn py-2 px-4 font-bold border-b-4 border-transparent hover:border-yellow-400 hidden" id="settings-tab">설정</button>
-        <button id="print-btn" class="ml-auto py-2 px-4 font-bold text-green-700 hover:underline">인쇄</button>
-        <button id="logout-btn" class="py-2 px-4 font-bold text-red-600 hover:underline">로그아웃</button>
-      </nav>
+  <div class="order-ai-banner">
+    <div class="oab-av">지사</div>
+    <div>
+      <div style="font-weight:700;font-size:14px;color:var(--P);margin-bottom:3px">안녕하세요! AI 상담원 지사입니다 👋</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5">제품 안내, 규격 상담, 납기 문의는 우측 하단 <strong style="color:var(--A)">💬 지사</strong> 버튼을 눌러주세요.<br>아래 양식을 작성하시면 담당 Seller가 확인합니다.</div>
+    </div>
+  </div>
 
-      <!-- 인쇄 영역 -->
-      <div id="printable-area">
+  <!-- SUCCESS -->
+  <div class="card hidden" id="succ-card">
+    <div class="succ">
+      <div class="ck">✓</div>
+      <h3>주문이 접수되었습니다!</h3>
+      <p>담당 Seller가 영업일 1~2일 내 연락드립니다.</p>
+      <p id="succ-id" style="font-family:'Orbitron',monospace;color:var(--A);font-size:14px;margin-top:8px"></p>
+      <button class="btn btn-p" style="margin-top:18px" onclick="resetForm()">새 주문 작성</button>
+    </div>
+  </div>
 
-        <!-- 대시보드 내용 -->
-        <div id="dashboard" class="tab-content">
-
-          <h2 class="text-2xl font-extrabold mb-4 text-yellow-600">대시보드 개요</h2>
-
-          <div class="mb-4 flex flex-wrap gap-4 items-center">
-            <label for="dashboard-date-filter" class="font-semibold">날짜별 필터:</label>
-            <input type="date" id="dashboard-date-filter" class="border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            <button id="clear-dashboard-filter" class="bg-yellow-400 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 transition">초기화</button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-            <div class="bg-white rounded shadow p-4">
-              <h3 class="font-bold mb-2">총 제조 수량</h3>
-              <p id="total-manufactured" class="text-3xl font-extrabold text-yellow-600">0</p>
-            </div>
-
-            <div class="bg-white rounded shadow p-4">
-              <h3 class="font-bold mb-2">총 판매 수량</h3>
-              <p id="total-sold" class="text-3xl font-extrabold text-yellow-600">0</p>
-            </div>
-
-            <div class="bg-white rounded shadow p-4">
-              <h3 class="font-bold mb-2">현재 재고</h3>
-              <p id="current-inventory" class="text-3xl font-extrabold text-yellow-600">0</p>
-            </div>
-
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <div class="bg-white rounded shadow p-4">
-              <h3 class="font-bold mb-2">제조 차트</h3>
-              <canvas id="manufacturingChart" class="w-full h-48"></canvas>
-            </div>
-
-            <div class="bg-white rounded shadow p-4">
-              <h3 class="font-bold mb-2">판매 차트</h3>
-              <canvas id="sellingChart" class="w-full h-48"></canvas>
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- 제조 기록 섹션 -->
-        <div id="manufacturing" class="tab-content hidden">
-
-          <h2 class="text-2xl font-extrabold mb-4 text-yellow-600">제조 기록</h2>
-
-          <form id="manufacturing-form" class="bg-white p-4 rounded shadow mb-6 space-y-4 max-w-3xl">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label for="m-type" class="block font-semibold mb-1">제조 유형</label>
-                <input type="text" id="m-type" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="m-date" class="block font-semibold mb-1">날짜</label>
-                <input type="date" id="m-date" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="m-quantity" class="block font-semibold mb-1">제조 수량</label>
-                <input type="number" id="m-quantity" min="1" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-            </div>
-            <button type="submit" class="bg-yellow-400 text-black font-extrabold py-2 px-4 rounded hover:bg-yellow-500 transition">제조 기록 추가</button>
-          </form>
-
-          <div class="mb-4 flex flex-wrap gap-4 items-center">
-            <label for="manufacturing-date-filter" class="font-semibold">날짜별 필터:</label>
-            <input type="date" id="manufacturing-date-filter" class="border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            <button id="clear-manufacturing-filter" class="bg-yellow-400 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 transition">초기화</button>
-          </div>
-
-          <div class="overflow-x-auto max-w-7xl">
-            <table class="min-w-full bg-white rounded shadow scrollbar-thin overflow-y-auto max-h-96 block">
-              <thead class="bg-yellow-400 text-black font-bold sticky top-0">
-                <tr>
-                  <th class="py-2 px-4 text-left">유형</th>
-                  <th class="py-2 px-4 text-left">날짜</th>
-                  <th class="py-2 px-4 text-left">수량</th>
-                  <th class="py-2 px-4 text-left">작업</th>
-                </tr>
-              </thead>
-              <tbody id="manufacturing-table-body" class="divide-y divide-gray-200 max-h-96 block overflow-y-auto">
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-
-        <!-- 판매 기록 섹션 -->
-        <div id="selling" class="tab-content hidden">
-
-          <h2 class="text-2xl font-extrabold mb-4 text-yellow-600">판매 기록</h2>
-
-          <form id="selling-form" class="bg-white p-4 rounded shadow mb-6 space-y-4 max-w-3xl">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label for="s-type" class="block font-semibold mb-1">제품 유형</label>
-                <input type="text" id="s-type" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="s-date" class="block font-semibold mb-1">날짜</label>
-                <input type="date" id="s-date" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="s-quantity" class="block font-semibold mb-1">판매 수량</label>
-                <input type="number" id="s-quantity" min="1" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-            </div>
-            <button type="submit" class="bg-yellow-400 text-black font-extrabold py-2 px-4 rounded hover:bg-yellow-500 transition">판매 기록 추가</button>
-          </form>
-
-          <div class="mb-4 flex flex-wrap gap-4 items-center">
-            <label for="selling-date-filter" class="font-semibold">날짜별 필터:</label>
-            <input type="date" id="selling-date-filter" class="border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            <button id="clear-selling-filter" class="bg-yellow-400 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 transition">초기화</button>
-          </div>
-
-          <div class="overflow-x-auto max-w-7xl">
-            <table class="min-w-full bg-white rounded shadow scrollbar-thin overflow-y-auto max-h-96 block">
-              <thead class="bg-yellow-400 text-black font-bold sticky top-0">
-                <tr>
-                  <th class="py-2 px-4 text-left">유형</th>
-                  <th class="py-2 px-4 text-left">날짜</th>
-                  <th class="py-2 px-4 text-left">판매 수량</th>
-                  <th class="py-2 px-4 text-left">작업</th>
-                </tr>
-              </thead>
-              <tbody id="selling-table-body" class="divide-y divide-gray-200 max-h-96 block overflow-y-auto">
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-
-        <!-- 사용자 관리 섹션 (관리자 전용) -->
-        <div id="users" class="tab-content hidden">
-
-          <h2 class="text-2xl font-extrabold mb-4 text-yellow-600">사용자 관리</h2>
-
-          <form id="user-form" class="bg-white p-4 rounded shadow mb-6 space-y-4 max-w-3xl">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label for="new-username" class="block font-semibold mb-1">사용자 이름</label>
-                <input type="text" id="new-username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="new-password" class="block font-semibold mb-1">비밀번호</label>
-                <input type="password" id="new-password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-              </div>
-              <div>
-                <label for="new-role" class="block font-semibold mb-1">역할</label>
-                <select id="new-role" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                  <option value="">역할 선택</option>
-                  <option value="admin">관리자</option>
-                  <option value="manager">매니저</option>
-                  <option value="user">사용자</option>
-                </select>
-              </div>
-            </div>
-            <button type="submit" class="bg-yellow-400 text-black font-extrabold py-2 px-4 rounded hover:bg-yellow-500 transition">사용자 추가</button>
-          </form>
-
-          <div class="overflow-x-auto max-w-7xl">
-            <table class="min-w-full bg-white rounded shadow scrollbar-thin overflow-y-auto max-h-96 block">
-              <thead class="bg-yellow-400 text-black font-bold sticky top-0">
-                <tr>
-                  <th class="py-2 px-4 text-left">사용자 이름</th>
-                  <th class="py-2 px-4 text-left">역할</th>
-                  <th class="py-2 px-4 text-left">작업</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body" class="divide-y divide-gray-200 max-h-96 block overflow-y-auto">
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-
-        <!-- 설정 섹션 (관리자 전용) -->
-        <div id="settings" class="tab-content hidden">
-
-          <h2 class="text-2xl font-extrabold mb-4 text-yellow-600">설정</h2>
-
-          <form id="password-reset-form" class="bg-white p-4 rounded shadow max-w-md space-y-4">
-            <h3 class="font-bold mb-2">사용자 비밀번호 재설정</h3>
-            <div>
-              <label for="reset-username" class="block font-semibold mb-1">사용자 이름</label>
-              <input type="text" id="reset-username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            </div>
-            <div>
-              <label for="reset-password" class="block font-semibold mb-1">새 비밀번호</label>
-              <input type="password" id="reset-password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            </div>
-            <button type="submit" class="bg-yellow-400 text-black font-extrabold py-2 px-4 rounded hover:bg-yellow-500 transition">비밀번호 재설정</button>
-          </form>
-
-        </div>
-
+  <!-- FORM -->
+  <div id="form-area">
+    <div class="card">
+      <div class="ctitle">👤 고객 정보</div>
+      <div class="fg">
+        <div><label>회사명 / 기관명 <span style="color:var(--red)">*</span></label><input id="o-company" placeholder="예: ○○수도사업소"/></div>
+        <div><label>담당자 성함 <span style="color:var(--red)">*</span></label><input id="o-name" placeholder="홍길동"/></div>
+        <div><label>연락처 <span style="color:var(--red)">*</span></label><input id="o-phone" placeholder="010-0000-0000"/></div>
+        <div><label>이메일</label><input id="o-email" type="email" placeholder="example@email.com"/></div>
+        <div class="full"><label>주소 (납품지)</label><input id="o-address" placeholder="납품 또는 청구 주소"/></div>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <footer class="bg-[#2a2c00] text-[#ffb600] p-4 text-center font-extrabold italic">
-    한국아이치(주) 수도미터 관리 시스템
-  </footer>
+    <div class="card">
+      <div class="ctitle">📦 주문 제품 정보</div>
+      <div class="fg">
+        <div>
+          <label>제품 유형 <span style="color:var(--red)">*</span></label>
+          <select id="o-product">
+            <option value="">-- 제품 선택 --</option>
+            <option>수도미터</option>
+            <option>수도미터 역류</option>
+            <option>디지털 수도미터</option>
+            <option>단갑</option>
+            <option>온수</option>
+            <option>감압밸브</option>
+            <option>앵글밸브</option>
+            <option>너트</option>
+            <option>파이프</option>
+            <option>상부외갑</option>
+            <option>하부외갑</option>
+            <option>기타 문의</option>
+          </select>
+        </div>
+        <div>
+          <label>규격 (구경)</label>
+          <select id="o-size">
+            <option value="">-- 규격 선택 --</option>
+            <option>15mm</option>
+            <option>20mm</option>
+            <option>25mm</option>
+            <option>32mm</option>
+            <option>40mm</option>
+            <option>50mm</option>
+            <option>75mm</option>
+            <option>100mm</option>
+            <option>15*35</option>
+            <option>기타/협의</option>
+          </select>
+        </div>
+        <div><label>주문 수량 <span style="color:var(--red)">*</span></label><input id="o-qty" type="number" min="1" placeholder="수량"/></div>
+        <div>
+          <label>설치 목적</label>
+          <select id="o-purpose">
+            <option value="">-- 선택 --</option>
+            <option value="신설">🆕 신설</option>
+            <option value="교체">🔄 교체</option>
+            <option value="재고 비축">📦 재고 비축</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div><label>희망 납기일</label><input id="o-delivery" placeholder="예: 2026년 7월 중순"/></div>
+        <div><label>납품 지역</label><input id="o-region" placeholder="예: 경기도 수원시"/></div>
+        <div class="full"><label>추가 요청 사항</label><textarea id="o-memo" rows="3" placeholder="특수 사양, 검정 요건, 내갑 브랜드(장안/신한/청호), 검정 장소(아이치/연호) 등 자유롭게 적어주세요."></textarea></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-p" id="submit-btn" onclick="submitOrder()">✅ 주문 접수하기</button>
+        <span style="font-size:11px;color:var(--muted)">* 필수 항목을 모두 입력해 주세요</span>
+      </div>
+      <div id="form-err" style="margin-top:8px;color:var(--red);font-size:12px;font-weight:600"></div>
+    </div>
+  </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    // 로컬스토리지 키
-    const STORAGE_KEYS = {
-      users: 'ki_users',
-      manufacturing: 'ki_manufacturing',
-      selling: 'ki_selling',
-      currentUser: 'ki_currentUser',
-      currentTab: 'ki_currentTab'
-    };
+<!-- ══════ RECEIVED ORDERS ══════ -->
+<div class="tab" id="tab-received">
+  <div style="font-family:'Orbitron',monospace;font-size:15px;font-weight:700;color:var(--P);margin-bottom:18px;display:flex;align-items:center;gap:8px">
+    📋 Received Orders — 접수된 주문
+  </div>
 
-    // 기본 사용자 (데모용, 비밀번호는 평문)
-    const defaultUsers = [
-      { username: 'admin', password: 'admin123', role: 'admin' },
-      { username: 'manager', password: 'manager123', role: 'manager' },
-      { username: 'user', password: 'user123', role: 'user' },
-    ];
+  <div class="sgrid">
+    <div class="scard"><div class="slbl">📦 전체</div><div class="sval" id="st-all">-</div></div>
+    <div class="scard"><div class="slbl">🆕 신규</div><div class="sval" id="st-new" style="color:var(--blue)">-</div></div>
+    <div class="scard"><div class="slbl">⚙️ 처리중</div><div class="sval" id="st-proc" style="color:#d97706">-</div></div>
+    <div class="scard"><div class="slbl">✅ 완료</div><div class="sval" id="st-done" style="color:#16a34a">-</div></div>
+  </div>
 
-    // 사용자 불러오기 또는 초기화
-    function loadUsers() {
-      const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.users));
-      if (!users) {
-        localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(defaultUsers));
-        return defaultUsers;
-      }
-      return users;
-    }
+  <div class="fbar">
+    <label>상태:</label>
+    <select id="f-status" onchange="renderTable()">
+      <option value="">전체</option>
+      <option value="신규접수">🆕 신규접수</option>
+      <option value="처리중">⚙️ 처리중</option>
+      <option value="완료">✅ 완료</option>
+      <option value="취소">❌ 취소</option>
+    </select>
+    <label>검색:</label>
+    <input id="f-search" placeholder="회사명·담당자 검색" style="width:170px" oninput="renderTable()"/>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="loadOrders()">🔄 새로고침</button>
+  </div>
 
-    // 사용자 저장
-    function saveUsers(users) {
-      localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-    }
+  <div id="tbl-loading" style="text-align:center;padding:36px;color:var(--muted);font-size:13px">주문 데이터를 불러오는 중...</div>
+  <div class="card hidden" id="tbl-wrap" style="padding:0;overflow:hidden">
+    <div class="tblw">
+      <table>
+        <thead><tr>
+          <th>#</th><th>접수일시</th><th>회사명</th><th>담당자</th>
+          <th>연락처</th><th>제품</th><th>규격</th><th>수량</th>
+          <th>목적</th><th>상태</th><th>관리</th>
+        </tr></thead>
+        <tbody id="orders-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card hidden" id="tbl-empty" style="text-align:center;padding:36px;color:var(--muted)">접수된 주문이 없습니다.</div>
+</div>
 
-    // 제조 기록 불러오기
-    function loadManufacturing() {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.manufacturing));
-      return data || [];
-    }
+<!-- ══════ ABOUT ══════ -->
+<div class="tab" id="tab-about">
+  <div class="card">
+    <div class="ctitle">🏢 한국아이치(주) 안내</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--txt)">
+      <p style="margin-bottom:10px"><strong>한국아이치(주)</strong>는 수도계량기 제조·공급 전문 기업입니다.</p>
+      <p style="margin-bottom:6px">📦 <strong>주요 제품:</strong> 수도미터, 수도미터 역류, 디지털 수도미터, 단갑, 온수, 감압밸브, 앵글밸브, 너트, 파이프 등</p>
+      <p style="margin-bottom:6px">📐 <strong>주요 규격:</strong> 15mm ~ 100mm (DN15 ~ DN100)</p>
+      <p style="margin-bottom:6px">🏷️ <strong>내갑 브랜드:</strong> 장안 / 신한 / 청호</p>
+      <p style="margin-bottom:6px">🔬 <strong>검정 장소:</strong> 아이치 / 연호</p>
+      <p style="margin-bottom:6px">📅 <strong>일반 납기:</strong> 주문 후 7~14 영업일</p>
+      <p style="margin-bottom:10px">⚡ <strong>긴급 납기:</strong> 재고 보유 시 3~5일 (별도 협의)</p>
+      <p style="color:var(--A);font-weight:700">🤖 우측 하단 AI 상담원 <strong>지사</strong>에게 24시간 문의 가능합니다.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">🔧 자동 차감 규칙 (신설 출고 시)</div>
+    <div style="font-size:12px;line-height:1.8;color:var(--muted)">
+      <p>• <strong>수도미터 / 수도미터 역류 / 디지털 수도미터</strong> → 너트(해당 규격) × 수량×2, 파이프(해당 규격) × 수량×2</p>
+      <p>• <strong>단갑 / 온수 (15mm)</strong> → 파이프(15*35) × 수량×2, 너트(15mm) × 수량×2</p>
+      <p>• <strong>단갑 / 온수 (기타 규격)</strong> → 너트(해당 규격) × 수량×2, 파이프(해당 규격) × 수량×2</p>
+      <p>• <strong>감압밸브 (15mm)</strong> → 파이프(15*35) × 수량×2, 너트(15mm) × 수량×2</p>
+    </div>
+  </div>
+</div>
 
-    // 제조 기록 저장
-    function saveManufacturing(data) {
-      localStorage.setItem(STORAGE_KEYS.manufacturing, JSON.stringify(data));
-    }
+</main>
+<footer>© 2026 한국아이치(주) · AI 상담원 지사 · 수도계량기 주문 포털</footer>
 
-    // 판매 기록 불러오기
-    function loadSelling() {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.selling));
-      return data || [];
-    }
+<!-- ─── ORDER DETAIL MODAL ─── -->
+<div class="moverlay hidden" id="detail-modal">
+  <div class="mbox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:16px;font-weight:700;color:var(--P)">📋 주문 상세</h3>
+      <button class="btn btn-sm btn-g" onclick="closeModal()">✕ 닫기</button>
+    </div>
+    <div id="modal-content"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <select id="modal-status" style="flex:1;padding:7px 10px;font-size:13px;border-radius:7px;border:1.5px solid var(--brd)">
+        <option value="신규접수">🆕 신규접수</option>
+        <option value="처리중">⚙️ 처리중</option>
+        <option value="완료">✅ 완료</option>
+        <option value="취소">❌ 취소</option>
+      </select>
+      <button class="btn btn-p btn-sm" onclick="updateStatus()">상태 저장</button>
+      <button class="btn btn-d btn-sm" onclick="deleteOrder()">삭제</button>
+    </div>
+  </div>
+</div>
 
-    // 판매 기록 저장
-    function saveSelling(data) {
-      localStorage.setItem(STORAGE_KEYS.selling, JSON.stringify(data));
-    }
+<!-- TOAST -->
+<div id="toast"></div>
 
-    // 현재 로그인 사용자
-    let currentUser = null;
+<!-- ═══ AI CHAT WIDGET ═══ -->
+<div id="ai-wrap">
+  <div id="ai-panel" class="hidden">
+    <div id="ai-head">
+      <div class="ai-av">지사</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#fff">지사 AI 상담원</div>
+        <div style="font-size:11px;color:#9acc66">한국아이치(주) · 온라인 24시간</div>
+      </div>
+      <button onclick="toggleChat()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.6);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="ai-msgs"></div>
+    <div id="ai-qbtns">
+      <button class="qb" onclick="sendQ('취급 제품을 알려주세요')">제품 안내</button>
+      <button class="qb" onclick="sendQ('규격별 용도 차이가 뭔가요?')">규격 안내</button>
+      <button class="qb" onclick="sendQ('납기 기간이 얼마나 걸리나요?')">납기 문의</button>
+      <button class="qb" onclick="sendQ('내갑 브랜드 차이를 알려주세요')">내갑 안내</button>
+      <button class="qb" onclick="sendQ('신설과 교체 차이는?')">신설/교체</button>
+      <button class="qb" onclick="sendQ('주문은 어떻게 하나요?')">주문 방법</button>
+    </div>
+    <div id="ai-irow">
+      <input id="ai-inp" placeholder="메시지를 입력하세요..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+      <button id="ai-send" onclick="sendMsg()">▶</button>
+    </div>
+  </div>
+  <button id="ai-fab" onclick="toggleChat()" title="AI 상담원 지사에게 문의">
+    🤖
+    <div id="ai-dot">1</div>
+  </button>
+</div>
 
-    // 요소들
-    const loginSection = document.getElementById('login-section');
-    const dashboardSection = document.getElementById('dashboard-section');
-    const userInfo = document.getElementById('user-info');
-    const logoutBtn = document.getElementById('logout-btn');
-    const printBtn = document.getElementById('print-btn');
+<script>
+/* ══ FIREBASE ══ */
+const FB = {
+  apiKey:"AIzaSyBGicvHuGJO9BTIa8gyiAiMfN8eWfm-Ix0",
+  authDomain:"program-10164.firebaseapp.com",
+  projectId:"program-10164",
+  storageBucket:"program-10164.firebasestorage.app",
+  messagingSenderId:"434512041153",
+  appId:"1:434512041153:web:74ebf82e1c64fa97cdf040",
+  databaseURL:"https://program-10164-default-rtdb.firebaseio.com/"
+};
+firebase.initializeApp(FB);
+const db = firebase.database();
+const ORDERS = 'customer_orders';
 
-    // 탭과 내용
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+let allOrders = [];
+let curKey = null;
+let chatOpen = false;
+let aiHistory = [];
+let aiTyping = false;
 
-    // 테이블 바디
-    const manufacturingTableBody = document.getElementById('manufacturing-table-body');
-    const sellingTableBody = document.getElementById('selling-table-body');
-    const usersTableBody = document.getElementById('users-table-body');
+/* ── TABS ── */
+document.querySelectorAll('.tbtn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tbtn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+    if (b.dataset.tab === 'received') loadOrders();
+  });
+});
 
-    // 대시보드 통계
-    const totalManufacturedEl = document.getElementById('total-manufactured');
-    const totalSoldEl = document.getElementById('total-sold');
-    const currentInventoryEl = document.getElementById('current-inventory');
+/* ── TOAST ── */
+function toast(msg, ms=2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
 
-    // 날짜 필터
-    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
-    const clearDashboardFilterBtn = document.getElementById('clear-dashboard-filter');
-    const manufacturingDateFilter = document.getElementById('manufacturing-date-filter');
-    const clearManufacturingFilterBtn = document.getElementById('clear-manufacturing-filter');
-    const sellingDateFilter = document.getElementById('selling-date-filter');
-    const clearSellingFilterBtn = document.getElementById('clear-selling-filter');
+/* ── SUBMIT ORDER ── */
+async function submitOrder() {
+  const co = v('o-company'), nm = v('o-name'), ph = v('o-phone'),
+        pr = v('o-product'), qt = v('o-qty');
+  const err = document.getElementById('form-err');
+  if (!co||!nm||!ph||!pr||!qt) { err.textContent='⚠️ 필수 항목(회사명·담당자·연락처·제품·수량)을 입력해 주세요.'; return; }
+  if (isNaN(qt)||parseInt(qt)<1) { err.textContent='⚠️ 수량을 올바르게 입력해 주세요.'; return; }
+  err.textContent='';
+  const btn = document.getElementById('submit-btn');
+  btn.innerHTML='<span class="spin"></span>접수 중...'; btn.disabled=true;
+  const order = {
+    company:co, name:nm, phone:ph,
+    email:v('o-email'), address:v('o-address'),
+    product:pr, size:v('o-size'), quantity:parseInt(qt),
+    purpose:v('o-purpose'), delivery:v('o-delivery'),
+    region:v('o-region'), memo:v('o-memo'),
+    status:'신규접수',
+    createdAt:new Date().toISOString(),
+    orderId:'ORD-'+Date.now()
+  };
+  try {
+    await db.ref(ORDERS).push(order);
+    document.getElementById('form-area').classList.add('hidden');
+    document.getElementById('succ-card').classList.remove('hidden');
+    document.getElementById('succ-id').textContent='주문번호: '+order.orderId;
+    toast('✅ 주문이 접수되었습니다!');
+  } catch(e) {
+    err.textContent='❌ 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+    btn.innerHTML='✅ 주문 접수하기'; btn.disabled=false;
+  }
+}
+function v(id){ return document.getElementById(id)?.value?.trim()||''; }
 
-    // 차트
-    let manufacturingChart = null;
-    let sellingChart = null;
+function resetForm() {
+  document.getElementById('succ-card').classList.add('hidden');
+  document.getElementById('form-area').classList.remove('hidden');
+  ['o-company','o-name','o-phone','o-email','o-address','o-product','o-size','o-qty','o-purpose','o-delivery','o-region','o-memo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value='';
+  });
+  const btn = document.getElementById('submit-btn');
+  btn.innerHTML='✅ 주문 접수하기'; btn.disabled=false;
+}
 
-    // 차트 초기화
-    function initCharts() {
-      const mCtx = document.getElementById('manufacturingChart').getContext('2d');
-      const sCtx = document.getElementById('sellingChart').getContext('2d');
+/* ── LOAD ORDERS ── */
+async function loadOrders() {
+  document.getElementById('tbl-loading').style.display='block';
+  document.getElementById('tbl-wrap').classList.add('hidden');
+  document.getElementById('tbl-empty').classList.add('hidden');
+  try {
+    const snap = await db.ref(ORDERS).once('value');
+    const val = snap.val();
+    allOrders = val
+      ? Object.entries(val).map(([k,v])=>({...v,_k:k})).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
+      : [];
+    updateStats(); renderTable();
+  } catch(e) {
+    document.getElementById('tbl-loading').textContent='데이터 로드 실패. 네트워크를 확인하세요.';
+  }
+}
 
-      manufacturingChart = new Chart(mCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: '제조 수량',
-            backgroundColor: '#facc15',
-            data: [],
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
+function updateStats() {
+  document.getElementById('st-all').textContent = allOrders.length;
+  document.getElementById('st-new').textContent = allOrders.filter(o=>o.status==='신규접수').length;
+  document.getElementById('st-proc').textContent = allOrders.filter(o=>o.status==='처리중').length;
+  document.getElementById('st-done').textContent = allOrders.filter(o=>o.status==='완료').length;
+}
 
-      sellingChart = new Chart(sCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: '판매 수량',
-            backgroundColor: '#fbbf24',
-            data: [],
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-    }
+function renderTable() {
+  const sf = document.getElementById('f-status').value;
+  const sq = document.getElementById('f-search').value.toLowerCase();
+  const list = allOrders.filter(o => {
+    const ms = !sf || o.status===sf;
+    const mq = !sq || (o.company||'').toLowerCase().includes(sq) || (o.name||'').toLowerCase().includes(sq);
+    return ms && mq;
+  });
+  document.getElementById('tbl-loading').style.display='none';
+  if (!list.length) {
+    document.getElementById('tbl-wrap').classList.add('hidden');
+    document.getElementById('tbl-empty').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('tbl-wrap').classList.remove('hidden');
+  document.getElementById('tbl-empty').classList.add('hidden');
+  const sm = {
+    '신규접수':'<span class="bdg b-new">🆕 신규접수</span>',
+    '처리중':'<span class="bdg b-proc">⚙️ 처리중</span>',
+    '완료':'<span class="bdg b-done">✅ 완료</span>',
+    '취소':'<span class="bdg b-cancel">❌ 취소</span>'
+  };
+  document.getElementById('orders-body').innerHTML = list.map((o,i)=>{
+    const dt = o.createdAt ? new Date(o.createdAt).toLocaleString('ko-KR',{dateStyle:'short',timeStyle:'short'}) : '-';
+    return `<tr>
+      <td style="color:var(--muted);font-size:11px">${i+1}</td>
+      <td style="font-size:11px;white-space:nowrap">${dt}</td>
+      <td><strong>${o.company||'-'}</strong></td>
+      <td>${o.name||'-'}</td>
+      <td style="font-size:11px">${o.phone||'-'}</td>
+      <td style="font-size:11px">${o.product||'-'}</td>
+      <td style="font-size:11px">${o.size||'-'}</td>
+      <td style="text-align:center;font-weight:700;color:var(--A)">${o.quantity||'-'}</td>
+      <td style="font-size:11px">${o.purpose||'-'}</td>
+      <td>${sm[o.status]||o.status}</td>
+      <td><button class="btn btn-i btn-sm" onclick="openDetail('${o._k}')">상세</button></td>
+    </tr>`;
+  }).join('');
+}
 
-    // 날짜별 필터링 (정확한 날짜)
-    function filterByDate(data, date) {
-      if (!date) return data;
-      return data.filter(item => item.date === date);
-    }
+/* ── DETAIL MODAL ── */
+function openDetail(key) {
+  const o = allOrders.find(x=>x._k===key); if(!o) return;
+  curKey = key;
+  const dt = o.createdAt ? new Date(o.createdAt).toLocaleString('ko-KR') : '-';
+  document.getElementById('modal-content').innerHTML = [
+    ['주문번호', `<span style="font-family:'Orbitron',monospace;color:var(--A)">${o.orderId||'-'}</span>`],
+    ['접수일시', dt],
+    ['회사명', o.company||'-'],
+    ['담당자', o.name||'-'],
+    ['연락처', o.phone||'-'],
+    ['이메일', o.email||'-'],
+    ['주소', o.address||'-'],
+    ['제품 유형', o.product||'-'],
+    ['규격', o.size||'-'],
+    ['수량', `<strong style="color:var(--A)">${o.quantity||'-'} 개</strong>`],
+    ['설치 목적', o.purpose||'-'],
+    ['희망 납기', o.delivery||'-'],
+    ['납품 지역', o.region||'-'],
+    ['메모', o.memo||'-'],
+  ].map(([l,r])=>`<div class="drow"><span class="dlbl">${l}</span><span class="dval">${r}</span></div>`).join('');
+  document.getElementById('modal-status').value = o.status||'신규접수';
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('detail-modal').classList.add('hidden'); curKey=null;
+}
+async function updateStatus() {
+  if(!curKey) return;
+  const ns = document.getElementById('modal-status').value;
+  try {
+    await db.ref(`${ORDERS}/${curKey}/status`).set(ns);
+    const o = allOrders.find(x=>x._k===curKey); if(o) o.status=ns;
+    updateStats(); renderTable(); toast('✅ 상태가 업데이트되었습니다.'); closeModal();
+  } catch(e){ toast('❌ 업데이트 실패'); }
+}
+async function deleteOrder() {
+  if(!curKey||!confirm('이 주문을 삭제하시겠습니까?')) return;
+  try {
+    await db.ref(`${ORDERS}/${curKey}`).remove();
+    allOrders = allOrders.filter(x=>x._k!==curKey);
+    updateStats(); renderTable(); toast('🗑️ 삭제되었습니다.'); closeModal();
+  } catch(e){ toast('❌ 삭제 실패'); }
+}
+document.getElementById('detail-modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
 
-    // 차트 업데이트 (날짜 필터 옵션)
-    function updateCharts(dateFilter = null) {
-      const manufacturingData = filterByDate(loadManufacturing(), dateFilter);
-      const sellingData = filterByDate(loadSelling(), dateFilter);
+/* ══════════════ AI AGENT 지사 ══════════════ */
+const SYS = `당신은 한국아이치(주)의 AI 상담원 "지사"입니다.
+한국아이치(주)는 수도계량기 제조·공급 전문 기업입니다.
 
-      const mMap = {};
-      manufacturingData.forEach(item => {
-        if (!mMap[item.type]) mMap[item.type] = 0;
-        mMap[item.type] += Number(item.quantity);
-      });
+[주요 제품 목록]
+- 수도미터: 일반 수도계량기, 15mm~50mm 규격
+- 수도미터 역류: 역류 방지 기능, 15mm~50mm 규격
+- 디지털 수도미터: IoT 원격검침 지원, 15mm~50mm 규격
+- 단갑: 계량기 보호용, 15mm~50mm 규격
+- 온수: 온수용 계량기, 15mm~50mm 규격
+- 감압밸브: 압력 조절, 주로 15mm 규격
+- 앵글밸브: 앵글 타입 밸브, 15mm 규격
+- 너트: 부자재 (다양한 규격)
+- 파이프: 부자재 (15*35 포함 다양한 규격)
+- 상부외갑 / 하부외갑: 계량기 외갑 부품
 
-      const sMap = {};
-      sellingData.forEach(item => {
-        if (!sMap[item.type]) sMap[item.type] = 0;
-        sMap[item.type] += Number(item.quantity);
-      });
+[규격(구경) 안내]
+15mm(DN15), 20mm(DN20), 25mm(DN25), 32mm(DN32), 40mm(DN40), 50mm(DN50), 75mm(DN75), 100mm(DN100), 15*35(파이프 전용)
+- 15~20mm: 가정용, 소형 상업용
+- 25~40mm: 중형 상업용, 아파트 단지
+- 50mm 이상: 대형 건물, 공업용, 공공시설
 
-      manufacturingChart.data.labels = Object.keys(mMap);
-      manufacturingChart.data.datasets[0].data = Object.values(mMap);
-      manufacturingChart.update();
+[내갑 브랜드]
+- 장안: 가장 널리 사용되는 표준 브랜드
+- 신한: 품질 우수, 일부 특수 모델 전용
+- 청호: 고성능 모델, 특수 환경용
 
-      sellingChart.data.labels = Object.keys(sMap);
-      sellingChart.data.datasets[0].data = Object.values(sMap);
-      sellingChart.update();
-    }
+[검정 장소]
+- 아이치: 당사 자체 검정
+- 연호: 외부 협력 검정 기관
 
-    // 대시보드 통계 업데이트 (날짜 필터 옵션)
-    function updateDashboardStats(dateFilter = null) {
-      const manufacturingData = filterByDate(loadManufacturing(), dateFilter);
-      const sellingData = filterByDate(loadSelling(), dateFilter);
+[납기 안내]
+- 일반 납기: 주문 후 7~14 영업일
+- 긴급 납기: 재고 보유 시 3~5일 (별도 협의 필요)
+- 대량 주문(500개 이상): 2~4주 소요, 사전 협의 필수
 
-      const totalManufactured = manufacturingData.reduce((acc, cur) => acc + Number(cur.quantity), 0);
-      const totalSold = sellingData.reduce((acc, cur) => acc + Number(cur.quantity), 0);
-      const currentInventory = totalManufactured - totalSold;
+[설치 목적]
+- 신설(🆕): 새로 설치 — 너트·파이프 부자재 자동 포함 처리
+- 교체(🔄): 기존 계량기 교체 — 구경 확인 후 동일 규격 주문 권장
 
-      totalManufacturedEl.textContent = totalManufactured;
-      totalSoldEl.textContent = totalSold;
-      currentInventoryEl.textContent = currentInventory >= 0 ? currentInventory : 0;
-    }
+[자동 차감 규칙 (신설 시)]
+- 수도미터/수도미터 역류/디지털 수도미터 → 해당 규격 너트×(수량×2), 파이프×(수량×2)
+- 단갑/온수 15mm → 파이프(15*35)×(수량×2), 너트(15mm)×(수량×2)
+- 단갑/온수 기타 → 해당 규격 너트×(수량×2), 파이프×(수량×2)
+- 감압밸브 15mm → 파이프(15*35)×(수량×2), 너트(15mm)×(수량×2)
 
-    // 제조 테이블 렌더링 (날짜 필터 옵션)
-    function renderManufacturingTable(dateFilter = null) {
-      const data = filterByDate(loadManufacturing(), dateFilter);
-      manufacturingTableBody.innerHTML = '';
-      data.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-yellow-50 cursor-pointer';
+[주문 방법]
+이 페이지 '🛒 주문하기' 탭에서 양식 작성 후 제출하시면 됩니다.
 
-        tr.innerHTML = `
-          <td class="py-2 px-4">${item.type}</td>
-          <td class="py-2 px-4">${item.date}</td>
-          <td class="py-2 px-4">${item.quantity}</td>
-          <td class="py-2 px-4 space-x-2">
-            ${canEditManufacturing() ? `<button data-index="${index}" class="edit-manufacturing-btn text-blue-600 hover:underline">수정</button>` : ''}
-            ${canDeleteManufacturing() ? `<button data-index="${index}" class="delete-manufacturing-btn text-red-600 hover:underline">삭제</button>` : ''}
-          </td>
-        `;
-        manufacturingTableBody.appendChild(tr);
-      });
-      attachManufacturingTableEvents();
-    }
+[가격 정책]
+가격은 수량, 규격, 납기에 따라 다르며 담당 Seller가 연락드립니다. 견적은 주문 접수 후 1~2 영업일 내 제공됩니다.
 
-    // 판매 테이블 렌더링 (날짜 필터 옵션)
-    function renderSellingTable(dateFilter = null) {
-      const data = filterByDate(loadSelling(), dateFilter);
-      sellingTableBody.innerHTML = '';
-      data.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-yellow-50 cursor-pointer';
+규칙:
+- 항상 친절하고 전문적으로 한국어로 답변
+- 모르는 내용은 "담당 Seller가 연락드리겠습니다"로 안내
+- 2~4문장으로 간결하게 답변
+- 주문을 유도할 때는 상단 탭의 '주문하기' 안내`;
 
-        tr.innerHTML = `
-          <td class="py-2 px-4">${item.type}</td>
-          <td class="py-2 px-4">${item.date}</td>
-          <td class="py-2 px-4">${item.quantity}</td>
-          <td class="py-2 px-4 space-x-2">
-            ${canEditSelling() ? `<button data-index="${index}" class="edit-selling-btn text-blue-600 hover:underline">수정</button>` : ''}
-            ${canDeleteSelling() ? `<button data-index="${index}" class="delete-selling-btn text-red-600 hover:underline">삭제</button>` : ''}
-          </td>
-        `;
-        sellingTableBody.appendChild(tr);
-      });
-      attachSellingTableEvents();
-    }
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const panel = document.getElementById('ai-panel');
+  if (chatOpen) {
+    panel.classList.remove('hidden');
+    document.getElementById('ai-dot').style.display='none';
+    if (!aiHistory.length) addAI('안녕하세요! 저는 한국아이치(주) AI 상담원 지사입니다. 💧\n수도계량기 제품·규격·납기·주문 방법 등 무엇이든 물어보세요!');
+    setTimeout(()=>document.getElementById('ai-inp').focus(), 150);
+  } else {
+    panel.classList.add('hidden');
+  }
+}
 
-    // 사용자 테이블 렌더링 (관리자 전용)
-    function renderUsersTable() {
-      if (!isAdmin()) return;
-      const users = loadUsers();
-      usersTableBody.innerHTML = '';
-      users.forEach((user, index) => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-yellow-50 cursor-pointer';
+function addAI(txt) {
+  const msgs = document.getElementById('ai-msgs');
+  const d = document.createElement('div');
+  d.className='msg ai'; d.textContent=txt;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+  aiHistory.push({role:'assistant',content:txt});
+}
+function addUser(txt) {
+  const msgs = document.getElementById('ai-msgs');
+  const d = document.createElement('div');
+  d.className='msg user'; d.textContent=txt;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+  aiHistory.push({role:'user',content:txt});
+}
+function showTyping() {
+  const msgs = document.getElementById('ai-msgs');
+  const d = document.createElement('div');
+  d.className='msg ty'; d.id='ty'; d.textContent='지사가 답변을 작성 중입니다...';
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+function removeTyping() { const t=document.getElementById('ty'); if(t) t.remove(); }
 
-        tr.innerHTML = `
-          <td class="py-2 px-4">${user.username}</td>
-          <td class="py-2 px-4 capitalize">${user.role}</td>
-          <td class="py-2 px-4 space-x-2">
-            ${user.username !== currentUser.username ? `<button data-index="${index}" class="delete-user-btn text-red-600 hover:underline">삭제</button>` : ''}
-          </td>
-        `;
-        usersTableBody.appendChild(tr);
-      });
-      attachUsersTableEvents();
-    }
+async function sendMsg() {
+  if (aiTyping) return;
+  const inp = document.getElementById('ai-inp');
+  const txt = inp.value.trim(); if (!txt) return;
+  inp.value='';
+  addUser(txt);
+  await callClaude();
+}
+async function sendQ(txt) {
+  if (aiTyping) return;
+  if (!chatOpen) toggleChat();
+  addUser(txt);
+  await callClaude();
+}
 
-    // 권한 확인 함수들
-    function isAdmin() {
-      return currentUser && currentUser.role === 'admin';
-    }
-    function isManager() {
-      return currentUser && currentUser.role === 'manager';
-    }
-    function isUser() {
-      return currentUser && currentUser.role === 'user';
-    }
-
-    function canEditManufacturing() {
-      return isAdmin() || isManager();
-    }
-    function canDeleteManufacturing() {
-      return isAdmin();
-    }
-    function canEditSelling() {
-      return isAdmin() || isUser();
-    }
-    function canDeleteSelling() {
-      return isAdmin();
-    }
-
-    // 이벤트 연결 함수들 (수정, 삭제 버튼)
-    function attachManufacturingTableEvents() {
-      document.querySelectorAll('.edit-manufacturing-btn').forEach(btn => {
-        btn.onclick = e => {
-          const index = e.target.dataset.index;
-          editManufacturingRecord(index);
-        };
-      });
-      document.querySelectorAll('.delete-manufacturing-btn').forEach(btn => {
-        btn.onclick = e => {
-          const index = e.target.dataset.index;
-          if (confirm('이 제조 기록을 삭제하시겠습니까?')) {
-            deleteManufacturingRecord(index);
-          }
-        };
-      });
-    }
-
-    function attachSellingTableEvents() {
-      document.querySelectorAll('.edit-selling-btn').forEach(btn => {
-        btn.onclick = e => {
-          const index = e.target.dataset.index;
-          editSellingRecord(index);
-        };
-      });
-      document.querySelectorAll('.delete-selling-btn').forEach(btn => {
-        btn.onclick = e => {
-          const index = e.target.dataset.index;
-          if (confirm('이 판매 기록을 삭제하시겠습니까?')) {
-            deleteSellingRecord(index);
-          }
-        };
-      });
-    }
-
-    function attachUsersTableEvents() {
-      document.querySelectorAll('.delete-user-btn').forEach(btn => {
-        btn.onclick = e => {
-          const index = e.target.dataset.index;
-          if (confirm('이 사용자를 삭제하시겠습니까?')) {
-            deleteUser(index);
-          }
-        };
-      });
-    }
-
-    // 수정 및 삭제 함수들
-    function editManufacturingRecord(index) {
-      if (!canEditManufacturing()) return alert('제조 기록을 수정할 권한이 없습니다.');
-      const data = loadManufacturing();
-      const record = data[index];
-      if (!record) return;
-
-      const newType = prompt('제조 유형 수정:', record.type);
-      if (newType === null) return;
-      const newDate = prompt('날짜 수정 (YYYY-MM-DD):', record.date);
-      if (newDate === null) return;
-      const newQuantity = prompt('수량 수정:', record.quantity);
-      if (newQuantity === null || isNaN(newQuantity) || Number(newQuantity) < 1) return alert('유효하지 않은 수량입니다.');
-
-      data[index] = { type: newType.trim(), date: newDate.trim(), quantity: Number(newQuantity) };
-      saveManufacturing(data);
-      renderManufacturingTable(manufacturingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-    }
-
-    function deleteManufacturingRecord(index) {
-      if (!canDeleteManufacturing()) return alert('제조 기록을 삭제할 권한이 없습니다.');
-      const data = loadManufacturing();
-      data.splice(index, 1);
-      saveManufacturing(data);
-      renderManufacturingTable(manufacturingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-    }
-
-    function editSellingRecord(index) {
-      if (!canEditSelling()) return alert('판매 기록을 수정할 권한이 없습니다.');
-      const data = loadSelling();
-      const record = data[index];
-      if (!record) return;
-
-      const newType = prompt('제품 유형 수정:', record.type);
-      if (newType === null) return;
-      const newDate = prompt('날짜 수정 (YYYY-MM-DD):', record.date);
-      if (newDate === null) return;
-      const newQuantity = prompt('판매 수량 수정:', record.quantity);
-      if (newQuantity === null || isNaN(newQuantity) || Number(newQuantity) < 1) return alert('유효하지 않은 수량입니다.');
-
-      data[index] = { type: newType.trim(), date: newDate.trim(), quantity: Number(newQuantity) };
-      saveSelling(data);
-      renderSellingTable(sellingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-    }
-
-    function deleteSellingRecord(index) {
-      if (!canDeleteSelling()) return alert('판매 기록을 삭제할 권한이 없습니다.');
-      const data = loadSelling();
-      data.splice(index, 1);
-      saveSelling(data);
-      renderSellingTable(sellingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-    }
-
-    function deleteUser(index) {
-      if (!isAdmin()) return alert('사용자를 삭제할 권한이 없습니다.');
-      const users = loadUsers();
-      if (users[index].username === currentUser.username) return alert('자기 자신을 삭제할 수 없습니다.');
-      users.splice(index, 1);
-      saveUsers(users);
-      renderUsersTable();
-    }
-
-    // 탭 표시 함수
-    function showTab(tabName) {
-      tabContents.forEach(tc => {
-        if (tc.id === tabName) {
-          tc.classList.remove('hidden');
-        } else {
-          tc.classList.add('hidden');
-        }
-      });
-      tabButtons.forEach(btn => {
-        if (btn.dataset.tab === tabName) {
-          btn.classList.add('border-yellow-400', 'text-yellow-600');
-          btn.classList.remove('border-transparent');
-        } else {
-          btn.classList.remove('border-yellow-400', 'text-yellow-600');
-          btn.classList.add('border-transparent');
-        }
-      });
-      localStorage.setItem(STORAGE_KEYS.currentTab, tabName);
-    }
-
-    // UI 업데이트 (역할에 따라)
-    function updateUIForRole() {
-      const usersTab = document.getElementById('users-tab');
-      const settingsTab = document.getElementById('settings-tab');
-
-      if (isAdmin()) {
-        usersTab.classList.remove('hidden');
-        settingsTab.classList.remove('hidden');
-      } else {
-        usersTab.classList.add('hidden');
-        settingsTab.classList.add('hidden');
-      }
-
-      document.getElementById('manufacturing-form').style.display = (isAdmin() || isManager()) ? 'block' : 'none';
-      document.getElementById('selling-form').style.display = (isAdmin() || isUser()) ? 'block' : 'none';
-      document.getElementById('user-form').style.display = isAdmin() ? 'block' : 'none';
-      document.getElementById('password-reset-form').style.display = isAdmin() ? 'block' : 'none';
-
-      renderManufacturingTable(manufacturingDateFilter.value || null);
-      renderSellingTable(sellingDateFilter.value || null);
-      renderUsersTable();
-
-      const savedTab = localStorage.getItem(STORAGE_KEYS.currentTab);
-      if (savedTab && Array.from(tabButtons).some(btn => btn.dataset.tab === savedTab)) {
-        showTab(savedTab);
-      } else {
-        showTab('dashboard');
-      }
-    }
-
-    // 로그인 폼 제출 (역할 선택 없이 모두 로그인 가능)
-    document.getElementById('login-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!username || !password) {
-        alert('모든 필드를 입력해주세요.');
-        return;
-      }
-
-      const users = loadUsers();
-      const user = users.find(u => u.username === username && u.password === password);
-      if (!user) {
-        alert('사용자 이름 또는 비밀번호가 올바르지 않습니다.');
-        return;
-      }
-
-      currentUser = user;
-      userInfo.textContent = `로그인: ${currentUser.username} (${currentUser.role})`;
-      loginSection.classList.add('hidden');
-      dashboardSection.classList.remove('hidden');
-      updateUIForRole();
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-
-      localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(currentUser));
+async function callClaude() {
+  aiTyping=true; showTyping();
+  const msgs = aiHistory.slice(-12).map(m=>({role:m.role,content:m.content}));
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:1000,
+        system:SYS,
+        messages:msgs
+      })
     });
+    const data = await res.json();
+    removeTyping();
+    addAI(data.content?.[0]?.text || '죄송합니다. 잠시 후 다시 시도해 주세요.');
+  } catch(e) {
+    removeTyping();
+    addAI('일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  aiTyping=false;
+}
 
-    // 로그아웃 버튼
-    logoutBtn.addEventListener('click', () => {
-      if (confirm('로그아웃 하시겠습니까?')) {
-        currentUser = null;
-        userInfo.textContent = '';
-        loginSection.classList.remove('hidden');
-        dashboardSection.classList.add('hidden');
-        document.getElementById('login-form').reset();
-        localStorage.removeItem(STORAGE_KEYS.currentUser);
-        localStorage.removeItem(STORAGE_KEYS.currentTab);
-      }
-    });
-
-    // 인쇄 버튼
-    printBtn.addEventListener('click', () => {
-      window.print();
-    });
-
-    // 탭 버튼 클릭 이벤트
-    tabButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        showTab(btn.dataset.tab);
-      });
-    });
-
-    // 제조 폼 제출
-    document.getElementById('manufacturing-form').addEventListener('submit', e => {
-      e.preventDefault();
-      if (!(isAdmin() || isManager())) {
-        alert('제조 기록을 추가할 권한이 없습니다.');
-        return;
-      }
-      const type = document.getElementById('m-type').value.trim();
-      const date = document.getElementById('m-date').value;
-      const quantity = Number(document.getElementById('m-quantity').value);
-
-      if (!type || !date || quantity < 1) {
-        alert('모든 필드를 올바르게 입력해주세요.');
-        return;
-      }
-
-      const data = loadManufacturing();
-      data.push({ type, date, quantity });
-      saveManufacturing(data);
-      renderManufacturingTable(manufacturingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-
-      e.target.reset();
-    });
-
-    // 판매 폼 제출
-    document.getElementById('selling-form').addEventListener('submit', e => {
-      e.preventDefault();
-      if (!(isAdmin() || isUser())) {
-        alert('판매 기록을 추가할 권한이 없습니다.');
-        return;
-      }
-      const type = document.getElementById('s-type').value.trim();
-      const date = document.getElementById('s-date').value;
-      const quantity = Number(document.getElementById('s-quantity').value);
-
-      if (!type || !date || quantity < 1) {
-        alert('모든 필드를 올바르게 입력해주세요.');
-        return;
-      }
-
-      const data = loadSelling();
-      data.push({ type, date, quantity });
-      saveSelling(data);
-      renderSellingTable(sellingDateFilter.value || null);
-      updateDashboardStats(dashboardDateFilter.value || null);
-      updateCharts(dashboardDateFilter.value || null);
-
-      e.target.reset();
-    });
-
-    // 사용자 폼 제출 (관리자 전용)
-    document.getElementById('user-form').addEventListener('submit', e => {
-      e.preventDefault();
-      if (!isAdmin()) {
-        alert('사용자를 추가할 권한이 없습니다.');
-        return;
-      }
-      const username = document.getElementById('new-username').value.trim();
-      const password = document.getElementById('new-password').value;
-      const role = document.getElementById('new-role').value;
-
-      if (!username || !password || !role) {
-        alert('모든 필드를 입력해주세요.');
-        return;
-      }
-
-      const users = loadUsers();
-      if (users.find(u => u.username === username)) {
-        alert('이미 존재하는 사용자 이름입니다.');
-        return;
-      }
-
-      users.push({ username, password, role });
-      saveUsers(users);
-      renderUsersTable();
-
-      e.target.reset();
-    });
-
-    // 비밀번호 재설정 폼 제출 (관리자 전용)
-    document.getElementById('password-reset-form').addEventListener('submit', e => {
-      e.preventDefault();
-      if (!isAdmin()) {
-        alert('비밀번호를 재설정할 권한이 없습니다.');
-        return;
-      }
-      const username = document.getElementById('reset-username').value.trim();
-      const newPassword = document.getElementById('reset-password').value;
-
-      if (!username || !newPassword) {
-        alert('모든 필드를 입력해주세요.');
-        return;
-      }
-
-      const users = loadUsers();
-      const user = users.find(u => u.username === username);
-      if (!user) {
-        alert('사용자를 찾을 수 없습니다.');
-        return;
-      }
-
-      user.password = newPassword;
-      saveUsers(users);
-      alert('비밀번호가 성공적으로 재설정되었습니다.');
-
-      e.target.reset();
-    });
-
-    // 날짜 필터 이벤트 핸들러
-    dashboardDateFilter.addEventListener('change', () => {
-      const date = dashboardDateFilter.value || null;
-      updateDashboardStats(date);
-      updateCharts(date);
-    });
-    clearDashboardFilterBtn.addEventListener('click', () => {
-      dashboardDateFilter.value = '';
-      updateDashboardStats(null);
-      updateCharts(null);
-    });
-
-    manufacturingDateFilter.addEventListener('change', () => {
-      const date = manufacturingDateFilter.value || null;
-      renderManufacturingTable(date);
-    });
-    clearManufacturingFilterBtn.addEventListener('click', () => {
-      manufacturingDateFilter.value = '';
-      renderManufacturingTable(null);
-    });
-
-    sellingDateFilter.addEventListener('change', () => {
-      const date = sellingDateFilter.value || null;
-      renderSellingTable(date);
-    });
-    clearSellingFilterBtn.addEventListener('click', () => {
-      sellingDateFilter.value = '';
-      renderSellingTable(null);
-    });
-
-    // 페이지 로드 시 세션 복원
-    window.onload = () => {
-      initCharts();
-      loadUsers();
-      loadManufacturing();
-      loadSelling();
-
-      const savedUser = localStorage.getItem(STORAGE_KEYS.currentUser);
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-          const users = loadUsers();
-          const validUser = users.find(u => u.username === currentUser.username && u.role === currentUser.role);
-          if (validUser) {
-            userInfo.textContent = `로그인: ${currentUser.username} (${currentUser.role})`;
-            loginSection.classList.add('hidden');
-            dashboardSection.classList.remove('hidden');
-            updateUIForRole();
-            updateDashboardStats(dashboardDateFilter.value || null);
-            updateCharts(dashboardDateFilter.value || null);
-            return;
-          }
-        } catch {
-          localStorage.removeItem(STORAGE_KEYS.currentUser);
-          localStorage.removeItem(STORAGE_KEYS.currentTab);
-        }
-      }
-      loginSection.classList.remove('hidden');
-      dashboardSection.classList.add('hidden');
-    };
-  </script>
+/* Show dot badge after 3s */
+setTimeout(()=>{ if(!chatOpen) document.getElementById('ai-dot').style.display='flex'; }, 3000);
+</script>
 </body>
 </html>
